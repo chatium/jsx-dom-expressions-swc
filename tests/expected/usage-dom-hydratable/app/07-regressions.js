@@ -1,4 +1,5 @@
 import { template as _$template } from "solid-js/web";
+import { classList as _$classList } from "solid-js/web";
 import { runHydrationEvents as _$runHydrationEvents } from "solid-js/web";
 import { spread as _$spread } from "solid-js/web";
 import { mergeProps as _$mergeProps } from "solid-js/web";
@@ -194,3 +195,47 @@ const wontEscape = (() => {
 const namespacedOnComponent = _$createComponent(Comp, {
   "xlink:href": url
 });
+
+// A computed key does not by itself make an object unevaluable: Babel evaluates the key and
+// stays confident, so a constant one keeps style/classList static instead of reactive.
+const computedKeyStatic = (() => {
+  const _el$19 = _$getNextElement(_tmpl$);
+  _$style(_el$19, {
+    ['flex-direction']: 'row'
+  });
+  return _el$19;
+})();
+const computedKeyFolded = (() => {
+  const _el$20 = _$getNextElement(_tmpl$);
+  _$style(_el$20, {
+    ['flex-' + 'direction']: 'row'
+  });
+  return _el$20;
+})();
+const computedKeyClassList = (() => {
+  const _el$21 = _$getNextElement(_tmpl$);
+  _$classList(_el$21, {
+    ['is-open']: true
+  });
+  return _el$21;
+})();
+// An unevaluable key still deopts the whole object.
+const computedKeyDynamic = (() => {
+  const _el$22 = _$getNextElement(_tmpl$);
+  _$effect(_$p => _$style(_el$22, {
+    [dynamic]: 'row'
+  }, _$p));
+  return _el$22;
+})();
+
+// Shorthand is a key/value property to Babel, so it evaluates like one. This object skips the
+// classList preprocessing (a key with a space), which is what routes it through evaluate().
+const shorthandActive = true;
+const shorthandInObject = (() => {
+  const _el$23 = _$getNextElement(_tmpl$);
+  _$classList(_el$23, {
+    'a b': true,
+    shorthandActive
+  });
+  return _el$23;
+})();

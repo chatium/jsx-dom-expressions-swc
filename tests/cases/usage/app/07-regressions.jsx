@@ -97,3 +97,16 @@ const ssrComputedStyle = <div style={{color: c, [cssVar]: v, ["--x"]: w, [f()]: 
 const wontEscape = <div>{cond ? <span>x</span> : null}</div>
 // A namespaced attribute on a component becomes a computed string key.
 const namespacedOnComponent = <Comp xlink:href={url} />
+
+// A computed key does not by itself make an object unevaluable: Babel evaluates the key and
+// stays confident, so a constant one keeps style/classList static instead of reactive.
+const computedKeyStatic = <div style={{ ['flex-direction']: 'row' }} />
+const computedKeyFolded = <div style={{ ['flex-' + 'direction']: 'row' }} />
+const computedKeyClassList = <div classList={{ ['is-open']: true }} />
+// An unevaluable key still deopts the whole object.
+const computedKeyDynamic = <div style={{ [dynamic]: 'row' }} />
+
+// Shorthand is a key/value property to Babel, so it evaluates like one. This object skips the
+// classList preprocessing (a key with a space), which is what routes it through evaluate().
+const shorthandActive = true
+const shorthandInObject = <div classList={{ 'a b': true, shorthandActive }} />

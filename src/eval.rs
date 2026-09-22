@@ -286,6 +286,8 @@ fn evaluate_at(expr: &Expr, bindings: &crate::scope::Bindings, depth: u32) -> Op
                 })
             })
             .then_some(Value::Object),
+        // Babel evaluates a computed key rather than giving up on it, so `{['a-b']: v}` is
+        // just as constant as `{'a-b': v}`. Only a key it cannot evaluate deopts the object.
         Expr::Object(object) => object
             .props
             .iter()
@@ -293,9 +295,20 @@ fn evaluate_at(expr: &Expr, bindings: &crate::scope::Bindings, depth: u32) -> Op
                 PropOrSpread::Spread(_) => false,
                 PropOrSpread::Prop(prop) => match &**prop {
                     Prop::KeyValue(kv) => {
-                        !matches!(kv.key, PropName::Computed(_))
-                            && evaluate_at(&kv.value, bindings, depth + 1).is_some()
+                        let key_ok = match &kv.key {
+                            PropName::Computed(computed) => {
+                                evaluate_at(&computed.expr, bindings, depth + 1).is_some()
+                            }
+                            _ => true,
+                        };
+                        key_ok && evaluate_at(&kv.value, bindings, depth + 1).is_some()
                     }
+                    // Babel's parser has no shorthand node: `{x}` is a key/value property
+                    // whose value is the identifier, and it evaluates like one.
+                    Prop::Shorthand(ident) => {
+                        evaluate_at(&Expr::Ident(ident.clone()), bindings, depth + 1).is_some()
+                    }
+                    // An accessor or method deopts, as `isObjectMethod` does upstream.
                     _ => false,
                 },
             })

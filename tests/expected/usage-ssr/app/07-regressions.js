@@ -131,3 +131,16 @@ const wontEscape = _$ssr(_tmpl$, cond ? _tmpl$10 : _$escape(null));
 const namespacedOnComponent = _$createComponent(Comp, {
   "xlink:href": url
 });
+
+// A computed key does not by itself make an object unevaluable: Babel evaluates the key and
+// stays confident, so a constant one keeps style/classList static instead of reactive.
+const computedKeyStatic = _$ssr(_tmpl$3, "flex-direction:" + "row");
+const computedKeyFolded = _$ssr(_tmpl$3, "undefined:" + "row");
+const computedKeyClassList = _$ssr(_tmpl$5, _$escape('is-open', true));
+// An unevaluable key still deopts the whole object.
+const computedKeyDynamic = _$ssr(_tmpl$3, "dynamic:" + "row");
+
+// Shorthand is a key/value property to Babel, so it evaluates like one. This object skips the
+// classList preprocessing (a key with a space), which is what routes it through evaluate().
+const shorthandActive = true;
+const shorthandInObject = _$ssr(_tmpl$5, `a b ${shorthandActive ? "shorthandActive" : ""}`);
