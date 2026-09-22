@@ -16,9 +16,9 @@ use crate::template::{
 use crate::transform::{Condition, Dynamic, Info, Results};
 use crate::utils::{
     DynamicOpts, attr_key, can_native_spread, check_length, convert_jsx_identifier,
-    escape_backticks, escape_html, filter_children, get_tag_name, ident, is_component,
-    is_empty_expr_container, is_logical, is_reserved_namespace, is_valid_identifier, to_event_name,
-    to_property_name, trim_whitespace, wrapped_by_text,
+    escape_backticks, escape_html, filter_children, filter_children_ref, get_tag_name, ident,
+    is_component, is_empty_expr_container, is_logical, is_reserved_namespace, is_valid_identifier,
+    to_event_name, to_property_name, trim_whitespace, wrapped_by_text,
 };
 
 #[derive(Default)]
@@ -1144,6 +1144,7 @@ impl<C: Comments> Transform<C> {
         let mut i = 0usize;
 
         let filtered = filter_children(children);
+        let filtered_refs: Vec<&JSXElementChild> = filtered.iter().collect();
         let last_element = self.find_last_element(&filtered);
 
         let mut child_nodes: Vec<Results> = Vec::new();
@@ -1158,7 +1159,7 @@ impl<C: Comments> Transform<C> {
                 );
                 continue;
             }
-            let skip_id = results.id.is_none() || !self.detect_expressions(&filtered, index);
+            let skip_id = results.id.is_none() || !self.detect_expressions(&filtered_refs, index);
             let info = Info {
                 to_be_closed: results.to_be_closed.clone(),
                 last_element: Some(index) == last_element,
@@ -1360,9 +1361,12 @@ impl<C: Comments> Transform<C> {
     }
 
     /// `detectExpressions`: whether this element still needs a reference at runtime.
-    fn detect_expressions(&self, children: &[JSXElementChild], index: usize) -> bool {
+    ///
+    /// Called once per child, and it walks the whole remaining subtree each time, so it must
+    /// not copy anything: it reads through references throughout.
+    fn detect_expressions(&self, children: &[&JSXElementChild], index: usize) -> bool {
         if index > 0 {
-            let previous = &children[index - 1];
+            let previous = children[index - 1];
             if matches!(previous, JSXElementChild::JSXExprContainer(_))
                 && !is_empty_expr_container(previous)
                 && self.get_static_expression(previous, false).is_none()
@@ -1376,7 +1380,7 @@ impl<C: Comments> Transform<C> {
             }
         }
         for child in children.iter().skip(index) {
-            match child {
+            match *child {
                 JSXElementChild::JSXExprContainer(_) => {
                     if !is_empty_expr_container(child)
                         && self.get_static_expression(child, false).is_none()
@@ -1417,7 +1421,7 @@ impl<C: Comments> Transform<C> {
                     if interesting {
                         return true;
                     }
-                    let next = filter_children(el.children.clone());
+                    let next = filter_children_ref(&el.children);
                     if !next.is_empty() && self.detect_expressions(&next, 0) {
                         return true;
                     }

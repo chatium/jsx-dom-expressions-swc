@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use swc_core::atoms::Atom;
 use swc_core::common::BytePos;
@@ -30,22 +30,33 @@ pub(crate) struct Binding {
 pub(crate) struct Bindings {
     by_id: HashMap<Id, Binding>,
     names: HashSet<Atom>,
+    /// Every name the program mentions, which is what `generateUid` must avoid. Collected
+    /// here because the walk that finds bindings already visits each identifier.
+    pub(crate) taken: HashSet<Atom>,
+    violations: Vec<Id>,
+    references: HashMap<Id, usize>,
+    /// Nesting validation rides along on this walk rather than making its own.
+    validate: Option<crate::Errors>,
 }
 
 impl Bindings {
-    pub(crate) fn from_program(program: &Program) -> Self {
-        let mut collector = Bindings::default();
+    /// One walk feeds all of it: the bindings themselves, the assignments that deopt
+    /// `evaluate()`, the reference counts it consults, and the set of names `generateUid`
+    /// has to avoid. These used to be four separate traversals of the whole program.
+    pub(crate) fn from_program(program: &Program, validate: Option<crate::Errors>) -> Self {
+        let mut collector = Bindings {
+            validate,
+            ..Default::default()
+        };
         program.visit_with(&mut collector);
-        let mut violations = Violations(Vec::new());
-        program.visit_with(&mut violations);
-        for id in violations.0 {
+        let violations = std::mem::take(&mut collector.violations);
+        for id in violations {
             if let Some(binding) = collector.by_id.get_mut(&id) {
                 binding.reassigned = true;
             }
         }
-        let mut references = References(HashMap::new());
-        program.visit_with(&mut references);
-        for (id, count) in references.0 {
+        let references = std::mem::take(&mut collector.references);
+        for (id, count) in references {
             if let Some(binding) = collector.by_id.get_mut(&id) {
                 binding.references = count;
             }
@@ -107,45 +118,6 @@ impl Bindings {
     }
 }
 
-/// Counts referencing uses of each name, skipping the declaration sites Babel does not count.
-struct References(HashMap<Id, usize>);
-
-impl Visit for References {
-    fn visit_ident(&mut self, node: &Ident) {
-        *self.0.entry(node.to_id()).or_default() += 1;
-    }
-    fn visit_binding_ident(&mut self, node: &BindingIdent) {
-        node.type_ann.visit_with(self);
-    }
-    fn visit_fn_decl(&mut self, node: &FnDecl) {
-        node.function.visit_with(self);
-    }
-    fn visit_class_decl(&mut self, node: &ClassDecl) {
-        node.class.visit_with(self);
-    }
-    fn visit_import_named_specifier(&mut self, _: &ImportNamedSpecifier) {}
-    fn visit_import_default_specifier(&mut self, _: &ImportDefaultSpecifier) {}
-    fn visit_import_star_as_specifier(&mut self, _: &ImportStarAsSpecifier) {}
-}
-
-struct Violations(Vec<Id>);
-
-impl Visit for Violations {
-    fn visit_assign_expr(&mut self, node: &AssignExpr) {
-        if let Some(ident) = node.left.as_ident() {
-            self.0.push(ident.id.to_id());
-        }
-        node.visit_children_with(self);
-    }
-
-    fn visit_update_expr(&mut self, node: &UpdateExpr) {
-        if let Expr::Ident(ident) = &*node.arg {
-            self.0.push(ident.to_id());
-        }
-        node.visit_children_with(self);
-    }
-}
-
 fn collect_pat_idents(pat: &Pat, out: &mut Vec<Ident>) {
     struct Collect<'a>(&'a mut Vec<Ident>);
     impl Visit for Collect<'_> {
@@ -160,6 +132,62 @@ fn collect_pat_idents(pat: &Pat, out: &mut Vec<Ident>) {
 }
 
 impl Visit for Bindings {
+    /// `validate`, ported from babel-plugin-validate-jsx-nesting by way of upstream. Upstream
+    /// reads `path.parent`, so only an element directly inside another element is checked.
+    fn visit_jsx_element(&mut self, node: &JSXElement) {
+        if let Some(errors) = &self.validate
+            && let JSXElementName::Ident(parent) = &node.opening.name
+            && !crate::utils::is_component(&parent.sym)
+        {
+            for child in &node.children {
+                let JSXElementChild::JSXElement(child) = child else {
+                    continue;
+                };
+                let JSXElementName::Ident(tag) = &child.opening.name else {
+                    continue;
+                };
+                if !crate::utils::is_component(&tag.sym)
+                    && !crate::nesting::is_valid_html_nesting(&parent.sym, &tag.sym)
+                {
+                    errors.push(
+                        child.span,
+                        format!(
+                            "Invalid JSX: <{}> cannot be child of <{}>",
+                            tag.sym, parent.sym
+                        ),
+                    );
+                }
+            }
+        }
+        node.visit_children_with(self);
+    }
+
+    /// Every identifier occupies a name, and every one that is not a declaration site is also
+    /// a reference. The declaration sites below record the name without the reference.
+    fn visit_ident(&mut self, node: &Ident) {
+        self.taken.insert(node.sym.clone());
+        *self.references.entry(node.to_id()).or_default() += 1;
+    }
+
+    fn visit_binding_ident(&mut self, node: &BindingIdent) {
+        self.taken.insert(node.id.sym.clone());
+        node.type_ann.visit_with(self);
+    }
+
+    fn visit_assign_expr(&mut self, node: &AssignExpr) {
+        if let Some(ident) = node.left.as_ident() {
+            self.violations.push(ident.id.to_id());
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, node: &UpdateExpr) {
+        if let Expr::Ident(ident) = &*node.arg {
+            self.violations.push(ident.to_id());
+        }
+        node.visit_children_with(self);
+    }
+
     fn visit_var_decl(&mut self, node: &VarDecl) {
         let is_const = node.kind == VarDeclKind::Const;
         for declarator in &node.decls {
@@ -174,6 +202,7 @@ impl Visit for Bindings {
     }
 
     fn visit_fn_decl(&mut self, node: &FnDecl) {
+        self.taken.insert(node.ident.sym.clone());
         self.insert(
             &node.ident,
             Binding {
@@ -185,10 +214,11 @@ impl Visit for Bindings {
                 references: 0,
             },
         );
-        node.visit_children_with(self);
+        node.function.visit_with(self);
     }
 
     fn visit_class_decl(&mut self, node: &ClassDecl) {
+        self.taken.insert(node.ident.sym.clone());
         self.insert(
             &node.ident,
             Binding {
@@ -200,7 +230,7 @@ impl Visit for Bindings {
                 references: 0,
             },
         );
-        node.visit_children_with(self);
+        node.class.visit_with(self);
     }
 
     fn visit_param(&mut self, node: &Param) {
@@ -221,6 +251,8 @@ impl Visit for Bindings {
     }
 
     fn visit_import_named_specifier(&mut self, node: &ImportNamedSpecifier) {
+        // The remote name of an import is not a reference and does not occupy a local name.
+        self.taken.insert(node.local.sym.clone());
         self.insert(
             &node.local,
             Binding {
@@ -235,6 +267,8 @@ impl Visit for Bindings {
     }
 
     fn visit_import_default_specifier(&mut self, node: &ImportDefaultSpecifier) {
+        // The remote name of an import is not a reference and does not occupy a local name.
+        self.taken.insert(node.local.sym.clone());
         self.insert(
             &node.local,
             Binding {
@@ -249,6 +283,8 @@ impl Visit for Bindings {
     }
 
     fn visit_import_star_as_specifier(&mut self, node: &ImportStarAsSpecifier) {
+        // The remote name of an import is not a reference and does not occupy a local name.
+        self.taken.insert(node.local.sym.clone());
         self.insert(
             &node.local,
             Binding {

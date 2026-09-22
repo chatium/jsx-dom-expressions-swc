@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use swc_core::common::comments::Comments;
 use swc_core::common::{DUMMY_SP, Span, Spanned};
 use swc_core::ecma::ast::*;
@@ -160,6 +162,18 @@ fn is_js_space(c: char) -> bool {
 }
 
 pub(crate) fn trim_whitespace(text: &str) -> String {
+    // Most JSX text has no carriage return and no run of whitespace to collapse; checking is
+    // cheaper than rebuilding the string twice.
+    if !text.contains('\r')
+        && !text.contains('\n')
+        && !text
+            .as_bytes()
+            .windows(2)
+            .any(|w| is_js_space(w[0] as char) && is_js_space(w[1] as char))
+        && text.is_ascii()
+    {
+        return text.to_string();
+    }
     let text = text.replace('\r', "");
     let text = if text.contains('\n') {
         text.split('\n')
@@ -194,14 +208,23 @@ pub(crate) fn trim_whitespace(text: &str) -> String {
     out
 }
 
-pub(crate) fn escape_backticks(value: &str) -> String {
-    value.replace('`', "\\`")
+pub(crate) fn escape_backticks(value: &str) -> Cow<'_, str> {
+    if value.contains('`') {
+        Cow::Owned(value.replace('`', "\\`"))
+    } else {
+        Cow::Borrowed(value)
+    }
 }
 
-pub(crate) fn escape_html(s: &str, attr: bool) -> String {
+/// Upstream returns the input untouched when there is nothing to escape, and most template
+/// text has nothing. Borrowing in that case keeps this off the allocation path.
+pub(crate) fn escape_html(s: &str, attr: bool) -> Cow<'_, str> {
     let delim = if attr { '"' } else { '<' };
+    if !s.contains(delim) && !s.contains('&') {
+        return Cow::Borrowed(s);
+    }
     let esc_delim = if attr { "&quot;" } else { "&lt;" };
-    let mut out = String::with_capacity(s.len());
+    let mut out = String::with_capacity(s.len() + 8);
     for c in s.chars() {
         if c == delim {
             out.push_str(esc_delim);
@@ -211,7 +234,7 @@ pub(crate) fn escape_html(s: &str, attr: bool) -> String {
             out.push(c);
         }
     }
-    out
+    Cow::Owned(out)
 }
 
 pub(crate) fn to_event_name(name: &str) -> String {
@@ -270,6 +293,28 @@ pub(crate) fn is_empty_expr_container(child: &JSXElementChild) -> bool {
 
 fn jsx_text_raw(text: &JSXText) -> &str {
     &text.raw
+}
+
+/// Whether `filterChildren` keeps this child.
+pub(crate) fn is_kept_child(child: &JSXElementChild) -> bool {
+    if is_empty_expr_container(child) {
+        return false;
+    }
+    match child {
+        JSXElementChild::JSXText(text) => {
+            let raw = jsx_text_raw(text);
+            !(raw.starts_with(['\r', '\n']) && raw[1..].chars().all(|c| c.is_whitespace()))
+        }
+        _ => true,
+    }
+}
+
+/// `filterChildren` without taking ownership, for the analysis passes that only read.
+pub(crate) fn filter_children_ref(children: &[JSXElementChild]) -> Vec<&JSXElementChild> {
+    children
+        .iter()
+        .filter(|child| is_kept_child(child))
+        .collect()
 }
 
 /// `filterChildren`: drop empty expression containers and pure line-break text.
@@ -537,12 +582,21 @@ impl<C: Comments> Transform<C> {
         child: &JSXElementChild,
         parent_is_component: bool,
     ) -> Option<String> {
-        if parent_is_component {
-            return None;
-        }
         let JSXElementChild::JSXExprContainer(container) = child else {
             return None;
         };
+        self.static_expression_of(container, parent_is_component)
+    }
+
+    /// The same, for a container already in hand — taking the child would mean cloning it.
+    pub(crate) fn static_expression_of(
+        &self,
+        container: &JSXExprContainer,
+        parent_is_component: bool,
+    ) -> Option<String> {
+        if parent_is_component {
+            return None;
+        }
         let JSXExpr::Expr(expr) = &container.expr else {
             return None;
         };

@@ -21,7 +21,7 @@ enum GetterBody {
 }
 
 impl<C: Comments> Transform<C> {
-    pub(crate) fn transform_component(&mut self, el: JSXElement) -> Results {
+    pub(crate) fn transform_component(&mut self, mut el: JSXElement) -> Results {
         let mut tag = convert_component_identifier(&el.opening.name);
         let mut props: Vec<Box<Expr>> = Vec::new();
         let mut running_object: Vec<PropOrSpread> = Vec::new();
@@ -36,7 +36,7 @@ impl<C: Comments> Transform<C> {
             tag = Box::new(Expr::Ident(imported));
         }
 
-        for attribute in el.opening.attrs.clone() {
+        for attribute in std::mem::take(&mut el.opening.attrs) {
             match attribute {
                 JSXAttrOrSpread::SpreadElement(spread) => {
                     if !running_object.is_empty() {

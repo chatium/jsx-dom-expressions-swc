@@ -152,6 +152,40 @@ Seventeen real bugs were found this way and are pinned in
 of them was a place where SWC's AST or Babel's traversal order differs subtly from what the
 plugin's code reads as — none were visible in the upstream fixture corpus.
 
+## Performance
+
+`examples/bench.rs` times the pass over a directory of lowered sources, reporting parse and
+transform separately so a change that does nothing cannot look like a win:
+
+```bash
+cargo run --release --example bench -- <dir of .jsx files> [iterations]
+BENCH_TRANSFORM_ONLY=1 cargo run --release --example bench -- <dir> 400   # for profiling
+```
+
+Two things moved the number, measured on 874 files (6.1 MiB) from Cap:
+
+| | transform | |
+| --- | --- | --- |
+| system allocator | 0.235s | |
+| `swc_malloc` | 0.144s | **1.6x** |
+| `swc_malloc` + the passes below | 0.140s | 1.7x total |
+
+**Link `swc_malloc` in the host binary.** A global allocator can only be set by the final
+binary, so this crate cannot do it for you, and it is the single largest factor — larger than
+every code change here put together. This AST allocates heavily and mimalloc handles that
+pattern far better than the system allocator.
+
+The code changes were worth about 15%, and came from profiling rather than guessing: the pass
+used to walk the whole program five times before transforming anything (uid names, bindings,
+assignments, reference counts, nesting validation). They are now one walk. The hot maps are
+keyed by interned atoms, where SipHash's collision resistance buys nothing, so they use
+`rustc-hash`.
+
+Two earlier attempts — borrowing instead of copying in `detect_expressions`, and returning
+`Cow` from the string escapers — measured as no change at all. They are kept because the code
+is no worse, but they are not why it got faster; the profile said allocation and repeated
+traversal, not string handling.
+
 ## Using it from a host compiler
 
 Run the JSX transform right after TypeScript stripping and before `hygiene`/`fixer`, and the

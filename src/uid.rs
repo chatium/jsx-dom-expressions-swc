@@ -1,8 +1,7 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use swc_core::atoms::Atom;
 use swc_core::ecma::ast::*;
-use swc_core::ecma::visit::{Visit, VisitWith};
 
 /// Babel's `Scope#generateUid`, including its off-by-one suffix quirk: the sequence for
 /// `el$` is `_el$, _el$2 … _el$9, _el$0, _el$1, _el$10, _el$11 …`. Matching it exactly is
@@ -13,14 +12,8 @@ pub(crate) struct UidGen {
 }
 
 impl UidGen {
-    pub(crate) fn from_program(program: &Program) -> Self {
-        let mut collector = Collector {
-            taken: HashSet::new(),
-        };
-        program.visit_with(&mut collector);
-        Self {
-            taken: collector.taken,
-        }
+    pub(crate) fn with_taken(taken: HashSet<Atom>) -> Self {
+        Self { taken }
     }
 
     pub(crate) fn generate(&mut self, name: &str) -> Ident {
@@ -46,29 +39,6 @@ impl UidGen {
                 return Ident::new_no_ctxt(uid, Default::default());
             }
         }
-    }
-}
-
-/// Collects every name Babel would consider taken: bindings, references, globals and labels.
-/// Property positions are already excluded: SWC types them as `IdentName`, which `visit_ident`
-/// never sees. Import/export specifiers are the exception — their remote name is a real `Ident`
-/// that Babel does not count as a reference.
-struct Collector {
-    taken: HashSet<Atom>,
-}
-
-impl Visit for Collector {
-    fn visit_ident(&mut self, ident: &Ident) {
-        self.taken.insert(ident.sym.clone());
-    }
-
-    fn visit_import_named_specifier(&mut self, node: &ImportNamedSpecifier) {
-        // `imported` is the remote name; only the local binding counts.
-        node.local.visit_with(self);
-    }
-
-    fn visit_export_named_specifier(&mut self, node: &ExportNamedSpecifier) {
-        node.orig.visit_with(self);
     }
 }
 

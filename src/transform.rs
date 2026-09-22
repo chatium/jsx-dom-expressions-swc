@@ -185,14 +185,11 @@ impl<C: Comments> Transform<C> {
             }
             JSXElementChild::JSXText(text) => self.text_result(trim_whitespace(&text.raw), &info),
             JSXElementChild::JSXExprContainer(container) => {
-                if let Some(value) = self.get_static_expression(
-                    &JSXElementChild::JSXExprContainer(container.clone()),
-                    !info.parent_is_native,
-                ) {
+                if let Some(value) = self.static_expression_of(&container, !info.parent_is_native) {
                     let text = if info.do_not_escape {
                         value
                     } else {
-                        escape_html(&value, false)
+                        escape_html(&value, false).into_owned()
                     };
                     return self.text_result(text, &info);
                 }
@@ -228,7 +225,7 @@ impl<C: Comments> Transform<C> {
             });
         }
         Some(Results {
-            template: escape_backticks(&text),
+            template: escape_backticks(&text).into_owned(),
             text: true,
             id: (!info.skip_id).then(|| self.uid.generate("el$")),
             ..Default::default()

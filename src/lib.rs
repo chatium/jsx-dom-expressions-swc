@@ -90,11 +90,9 @@ pub(crate) struct Transform<C: Comments> {
 
 impl<C: Comments> VisitMut for Transform<C> {
     fn visit_mut_program(&mut self, program: &mut Program) {
-        self.uid = UidGen::from_program(program);
-        self.bindings = Bindings::from_program(program);
-        if self.config.validate {
-            self.validate_nesting(program);
-        }
+        self.bindings =
+            Bindings::from_program(program, self.config.validate.then(|| self.errors.clone()));
+        self.uid = UidGen::with_taken(std::mem::take(&mut self.bindings.taken));
         if !self.should_process(program) {
             return;
         }
