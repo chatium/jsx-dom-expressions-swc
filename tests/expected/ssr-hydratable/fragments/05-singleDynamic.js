@@ -1,0 +1,1 @@
+const singleDynamic = inserted();

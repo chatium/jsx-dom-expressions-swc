@@ -1,0 +1,6 @@
+const lastStatic = (
+  <>
+    <div />
+    {inserted}
+  </>
+);

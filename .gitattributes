@@ -1,0 +1,3 @@
+# Upstream fixtures carry CRLF on purpose: trimWhitespace strips \r, so normalising
+# line endings here would silently change what the goldens prove.
+* -text

@@ -1,0 +1,6 @@
+const firstDynamic = (
+  <>
+    {inserted()}
+    <div />
+  </>
+);

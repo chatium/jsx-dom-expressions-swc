@@ -1,0 +1,6 @@
+const firstComponent = (
+  <>
+    <Component />
+    <div />
+  </>
+);

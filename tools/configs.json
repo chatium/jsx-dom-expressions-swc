@@ -1,0 +1,125 @@
+{
+  "app-dom": {
+    "fixtures": "dom",
+    "options": {
+      "moduleName": "solid-js/web"
+    }
+  },
+  "app-ssr": {
+    "fixtures": "ssr",
+    "options": {
+      "moduleName": "solid-js/web",
+      "generate": "ssr"
+    }
+  },
+  "usage-dom": {
+    "fixtures": "usage",
+    "options": {
+      "moduleName": "solid-js/web"
+    }
+  },
+  "usage-ssr": {
+    "fixtures": "usage",
+    "options": {
+      "moduleName": "solid-js/web",
+      "generate": "ssr"
+    }
+  },
+  "spec": {
+    "fixtures": "dom",
+    "options": {
+      "moduleName": "r-dom",
+      "builtIns": [
+        "For",
+        "Show"
+      ],
+      "generate": "dom",
+      "wrapConditionals": true,
+      "contextToCustomElements": true,
+      "staticMarker": "@once",
+      "requireImportSource": false
+    }
+  },
+  "dom-hydratable": {
+    "fixtures": "dom-hydratable",
+    "options": {
+      "moduleName": "r-dom",
+      "builtIns": [
+        "For",
+        "Show"
+      ],
+      "generate": "dom",
+      "hydratable": true,
+      "contextToCustomElements": true,
+      "staticMarker": "@once"
+    }
+  },
+  "dom-wrapperless": {
+    "fixtures": "dom-wrapperless",
+    "options": {
+      "moduleName": "r-dom",
+      "builtIns": [
+        "For",
+        "Show"
+      ],
+      "generate": "dom",
+      "wrapConditionals": false,
+      "delegateEvents": false,
+      "effectWrapper": false,
+      "memoWrapper": false
+    }
+  },
+  "ssr": {
+    "fixtures": "ssr",
+    "options": {
+      "moduleName": "r-server",
+      "builtIns": [
+        "For",
+        "Show"
+      ],
+      "generate": "ssr",
+      "contextToCustomElements": true,
+      "staticMarker": "@once"
+    }
+  },
+  "ssr-hydratable": {
+    "fixtures": "ssr-hydratable",
+    "options": {
+      "moduleName": "r-server",
+      "builtIns": [
+        "For",
+        "Show"
+      ],
+      "generate": "ssr",
+      "hydratable": true,
+      "contextToCustomElements": true,
+      "staticMarker": "@once"
+    }
+  },
+  "usage-dom-hydratable": {
+    "fixtures": "usage",
+    "options": {
+      "moduleName": "solid-js/web",
+      "hydratable": true
+    }
+  },
+  "usage-ssr-hydratable": {
+    "fixtures": "usage",
+    "options": {
+      "moduleName": "solid-js/web",
+      "generate": "ssr",
+      "hydratable": true
+    }
+  },
+  "usage-untested-options": {
+    "fixtures": "options",
+    "options": {
+      "moduleName": "r-dom",
+      "omitNestedClosingTags": true,
+      "delegatedEvents": [
+        "customev"
+      ],
+      "staticMarker": "@static"
+    }
+  }
+}

@@ -1,0 +1,144 @@
+import { template as _$template } from "solid-js/web";
+import { createComponent as _$createComponent } from "solid-js/web";
+import { insert as _$insert } from "solid-js/web";
+const _tmpl$ = /*#__PURE__*/_$template(`<span>Hello `),
+  _tmpl$2 = /*#__PURE__*/_$template(`<span> John`),
+  _tmpl$3 = /*#__PURE__*/_$template(`<span>Hello John`),
+  _tmpl$4 = /*#__PURE__*/_$template(`<span> `),
+  _tmpl$5 = /*#__PURE__*/_$template(`<span> <!> <!> `),
+  _tmpl$6 = /*#__PURE__*/_$template(`<span> <!> `),
+  _tmpl$7 = /*#__PURE__*/_$template(`<span>Hello`),
+  _tmpl$8 = /*#__PURE__*/_$template(`<span>&nbsp;&lt;Hi&gt;&nbsp;`),
+  _tmpl$9 = /*#__PURE__*/_$template(`<span>Hi&lt;script>alert();&lt;/script>`),
+  _tmpl$0 = /*#__PURE__*/_$template(`<span>Hello World!`),
+  _tmpl$1 = /*#__PURE__*/_$template(`<span>4 + 5 = 9`),
+  _tmpl$10 = /*#__PURE__*/_$template(`<div>
+d`),
+  _tmpl$11 = /*#__PURE__*/_$template(`<div>`),
+  _tmpl$12 = /*#__PURE__*/_$template(`<div normal="Search…" title="Search&amp;hellip;">`),
+  _tmpl$13 = /*#__PURE__*/_$template(`<div><div>`);
+const trailing = _tmpl$();
+const leading = _tmpl$2();
+
+/* prettier-ignore */
+const extraSpaces = _tmpl$3();
+const trailingExpr = (() => {
+  const _el$4 = _tmpl$(),
+    _el$5 = _el$4.firstChild;
+  _$insert(_el$4, name, null);
+  return _el$4;
+})();
+const leadingExpr = (() => {
+  const _el$6 = _tmpl$2(),
+    _el$7 = _el$6.firstChild;
+  _$insert(_el$6, greeting, _el$7);
+  return _el$6;
+})();
+
+/* prettier-ignore */
+const multiExpr = (() => {
+  const _el$8 = _tmpl$4(),
+    _el$9 = _el$8.firstChild;
+  _$insert(_el$8, greeting, _el$9);
+  _$insert(_el$8, name, null);
+  return _el$8;
+})();
+
+/* prettier-ignore */
+const multiExprSpaced = (() => {
+  const _el$0 = _tmpl$5(),
+    _el$1 = _el$0.firstChild,
+    _el$12 = _el$1.nextSibling,
+    _el$10 = _el$12.nextSibling,
+    _el$13 = _el$10.nextSibling,
+    _el$11 = _el$13.nextSibling;
+  _$insert(_el$0, greeting, _el$12);
+  _$insert(_el$0, name, _el$13);
+  return _el$0;
+})();
+
+/* prettier-ignore */
+const multiExprTogether = (() => {
+  const _el$14 = _tmpl$6(),
+    _el$15 = _el$14.firstChild,
+    _el$17 = _el$15.nextSibling,
+    _el$16 = _el$17.nextSibling;
+  _$insert(_el$14, greeting, _el$17);
+  _$insert(_el$14, name, _el$17);
+  return _el$14;
+})();
+
+/* prettier-ignore */
+const multiLine = _tmpl$7();
+
+/* prettier-ignore */
+const multiLineTrailingSpace = _tmpl$3();
+
+/* prettier-ignore */
+const multiLineNoTrailingSpace = _tmpl$3();
+
+/* prettier-ignore */
+const escape = _tmpl$8();
+
+/* prettier-ignore */
+const escape2 = _$createComponent(Comp, {
+  children: "\xA0<Hi>\xA0"
+});
+
+/* prettier-ignore */
+const escape3 = "\xA0<Hi>\xA0";
+const injection = _tmpl$9();
+let value = "World";
+const evaluated = _tmpl$0();
+let number = 4 + 5;
+const evaluatedNonString = _tmpl$1();
+const newLineLiteral = (() => {
+  const _el$25 = _tmpl$10(),
+    _el$26 = _el$25.firstChild;
+  _$insert(_el$25, s, _el$26);
+  return _el$25;
+})();
+const trailingSpace = (() => {
+  const _el$27 = _tmpl$11();
+  _$insert(_el$27, expr);
+  return _el$27;
+})();
+const trailingSpaceComp = _$createComponent(Comp, {
+  children: expr
+});
+const trailingSpaceFrag = expr;
+const leadingSpaceElement = (() => {
+  const _el$28 = _tmpl$4(),
+    _el$29 = _el$28.firstChild;
+  _$insert(_el$28, expr, null);
+  return _el$28;
+})();
+const leadingSpaceComponent = _$createComponent(Div, {
+  get children() {
+    return [" ", expr];
+  }
+});
+const leadingSpaceFragment = [" ", expr];
+const trailingSpaceElement = (() => {
+  const _el$30 = _tmpl$4(),
+    _el$31 = _el$30.firstChild;
+  _$insert(_el$30, expr, _el$31);
+  return _el$30;
+})();
+const trailingSpaceComponent = _$createComponent(Div, {
+  get children() {
+    return [expr, " "];
+  }
+});
+const trailingSpaceFragment = [expr, " "];
+const escapeAttribute = _tmpl$12();
+const escapeCompAttribute = _$createComponent(Div, {
+  normal: "Search\u2026",
+  title: "Search&hellip;"
+});
+const lastElementExpression = (() => {
+  const _el$33 = _tmpl$13(),
+    _el$34 = _el$33.firstChild;
+  _$insert(_el$33, expr, null);
+  return _el$33;
+})();

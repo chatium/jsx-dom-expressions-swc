@@ -1,0 +1,3 @@
+const dynamic = {
+  children
+};

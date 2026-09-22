@@ -1,0 +1,6 @@
+const firstStatic = (
+  <>
+    {inserted}
+    <div />
+  </>
+);

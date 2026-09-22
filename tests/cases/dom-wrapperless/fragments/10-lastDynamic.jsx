@@ -1,0 +1,6 @@
+const lastDynamic = (
+  <>
+    <div />
+    {inserted()}
+  </>
+);

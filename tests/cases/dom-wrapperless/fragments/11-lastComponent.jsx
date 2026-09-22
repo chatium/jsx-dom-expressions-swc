@@ -1,0 +1,6 @@
+const lastComponent = (
+  <>
+    <div />
+    <Component />
+  </>
+);
